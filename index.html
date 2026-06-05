@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unnoba ET MotorSport - Setup Simulator PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        path { transition: stroke 0.4s ease-in-out, filter 0.4s ease-in-out; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .modal-hidden { opacity: 0; pointer-events: none; }
+        .modal-visible { opacity: 1; pointer-events: auto; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-4 md:p-8">
+
+    <!-- MODAL FINAL -->
+    <div id="result-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center transition-opacity duration-300 modal-hidden backdrop-blur-sm p-4">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full transform transition-transform text-center overflow-y-auto max-h-[90vh]">
+            <h2 class="text-3xl font-bold text-blue-500 mb-2">¡Desafío Completado!</h2>
+            <p class="text-slate-400 mb-6">Ingeniero: <span id="modal-name" class="font-bold text-white text-lg"></span></p>
+
+            <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-6 space-y-3">
+                <div class="flex justify-between text-slate-300">
+                    <span>Resolución de Imprevisto:</span>
+                    <span id="modal-event-score" class="font-mono font-bold text-white">0</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                    <span>Puntaje del Test SAE:</span>
+                    <span id="modal-test-score" class="font-mono font-bold text-white">0</span>
+                </div>
+                <div class="border-t border-slate-700 pt-3 flex justify-between text-lg">
+                    <span class="font-bold text-emerald-400">Puntaje Total:</span>
+                    <span id="modal-total-score" class="font-mono font-bold text-emerald-400">0</span>
+                </div>
+            </div>
+
+            <button onclick="resetSimulator()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg shadow-blue-500/30 mb-6">
+                Siguiente Participante
+            </button>
+
+            <!-- Redes Sociales y QR -->
+            <div class="bg-slate-900/50 p-6 rounded-xl border border-blue-500/30 max-w-sm mx-auto flex flex-col items-center">
+                <h3 class="text-lg font-bold text-blue-400 mb-4">¡Seguinos en Instagram!</h3>
+                <a href="https://www.instagram.com/unnobaetmotorsport?igsh=NjB4cTI1NDFkZ2lm" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition-opacity flex flex-col items-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://www.instagram.com/unnobaetmotorsport?igsh=NjB4cTI1NDFkZ2lm&color=3b82f6" alt="QR Instagram Unnoba ET MotorSport" class="w-40 h-40 rounded-lg shadow-lg mb-4 bg-white p-2">
+                </a>
+                <a href="https://www.instagram.com/unnobaetmotorsport?igsh=NjB4cTI1NDFkZ2lm" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-400 font-semibold flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                    @unnobaetmotorsport
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN ELIMINAR -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center transition-opacity duration-300 modal-hidden backdrop-blur-sm p-4">
+        <div class="bg-slate-800 p-6 rounded-xl shadow-2xl border border-red-500/50 max-w-sm w-full text-center">
+            <h3 class="text-xl font-bold text-red-400 mb-2">¿Eliminar participante?</h3>
+            <p class="text-slate-300 mb-6" id="confirm-text">¿Seguro que querés eliminar este registro de la base de datos de Firebase?</p>
+            <div class="flex gap-4 justify-center">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded text-white font-semibold transition-colors">Cancelar</button>
+                <button id="btn-confirm-delete" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-white font-semibold transition-colors">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <!-- HEADER Y REGISTRO -->
+        <header class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-500 mb-1">Simulador SAE PRO</h1>
+                <p class="text-sm text-slate-400">Unnoba ET MotorSport - Desafío de Ingeniería</p>
+            </div>
+            <div class="flex flex-col relative w-full md:w-64">
+                <input type="text" id="player-name" placeholder="Tu Nombre / Equipo" class="w-full bg-slate-700 border border-slate-600 rounded px-4 py-2 text-white focus:outline-none focus:border-blue-500 text-lg transition-colors">
+                <span id="name-error" class="text-red-400 text-xs mt-1 absolute -bottom-5 hidden font-semibold w-[300px]"></span>
+            </div>
+        </header>
+
+        <!-- SECCIÓN 1: SETUP DEL CHASIS Y TELEMETRÍA -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            
+            <!-- PANEL IZQUIERDO: Controles -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-2xl font-semibold mb-2 text-white">1. Configuración del Chasis</h2>
+                    <p class="text-sm text-slate-400 mb-6 border-b border-slate-600 pb-4">Ajustá los parámetros buscando el mejor balance en pista cuidando el presupuesto.</p>
+
+                    <!-- Aerodinámica -->
+                    <div class="mb-8">
+                        <label class="flex justify-between text-sm font-medium mb-1 text-slate-200">
+                            <span>Aero (Downforce)</span><span id="aero-label" class="text-blue-400 font-bold">Media</span>
+                        </label>
+                        <input type="range" id="aero-slider" min="1" max="100" value="50" class="w-full accent-blue-500 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-xs text-slate-500 mt-2">Pega el auto al piso mejorando agarre en curvas, pero frena la velocidad en rectas (drag).</p>
+                    </div>
+
+                    <!-- Relación de Caja -->
+                    <div class="mb-8">
+                        <label class="flex justify-between text-sm font-medium mb-1 text-slate-200">
+                            <span>Relación de Caja (Gear Ratio)</span><span id="gear-label" class="text-blue-400 font-bold">Equilibrada</span>
+                        </label>
+                        <input type="range" id="gear-slider" min="1" max="100" value="50" class="w-full accent-blue-500 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-xs text-slate-500 mt-2">Caja corta = pique y salida rápida. Caja larga = máxima velocidad final.</p>
+                    </div>
+
+                    <!-- Suspensión -->
+                    <div class="mb-4">
+                        <label class="flex justify-between text-sm font-medium mb-1 text-slate-200">
+                            <span>Rigidez Suspensión</span><span id="susp-label" class="text-blue-400 font-bold">Intermedia</span>
+                        </label>
+                        <input type="range" id="susp-slider" min="1" max="100" value="50" class="w-full accent-blue-500 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                        <p class="text-xs text-slate-500 mt-2">Da estabilidad direccional, pero en exceso el auto rebota en baches y pierde tracción.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL DERECHO: Pista y Telemetría -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col">
+                <div class="mb-6 text-center bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <svg viewBox="0 0 240 100" class="w-full h-32 fill-none mx-auto" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+                        <path id="track-hairpin" d="M 140 20 C 100 20, 100 60, 70 60 C 40 60, 40 80, 40 80" />
+                        <path id="track-sweeper" d="M 200 80 C 250 80, 250 20, 200 20 L 140 20" />
+                        <path id="track-straight" d="M 40 80 L 200 80" />
+                    </svg>
+                </div>
+                
+                <div class="space-y-5 flex-grow border-b border-slate-700 pb-6 mb-6">
+                    <div>
+                        <div class="flex justify-between text-xs mb-1"><span>Velocidad Final (Recta)</span><span id="speed-score"></span></div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5"><div id="speed-bar" class="bg-[#818cf8] h-2.5 rounded-full transition-all"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1"><span>Aceleración (Horquilla)</span><span id="accel-score"></span></div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5"><div id="accel-bar" class="bg-[#34d399] h-2.5 rounded-full transition-all"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs mb-1"><span>Agarre (Curvón)</span><span id="corner-score"></span></div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5"><div id="corner-bar" class="bg-[#fbbf24] h-2.5 rounded-full transition-all"></div></div>
+                    </div>
+                    <div class="pt-2">
+                        <div class="flex justify-between text-xs font-bold mb-1"><span class="text-slate-300">Costo de Producción</span><span id="cost-score"></span></div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5"><div id="cost-bar" class="bg-blue-500 h-2.5 rounded-full transition-all"></div></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 h-24 flex items-center justify-center text-center">
+                    <div>
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Radio del Piloto</span>
+                        <p id="info-panel" class="text-sm text-slate-300 italic">"Esperando configuración para salir a pista..."</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: IMPREVISTOS Y EVALUACIÓN -->
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            
+            <div class="xl:col-span-8 space-y-6">
+                <!-- Imprevistos -->
+                <div class="bg-red-900/20 p-6 rounded-xl shadow-lg border border-red-500/30">
+                    <h2 class="text-2xl font-bold text-red-400 mb-2">2. Resolución de Imprevistos</h2>
+                    <p id="event-desc" class="text-sm text-slate-300 mb-4 border-b border-red-500/20 pb-4">Demostrá tu resiliencia: si surge un problema, resolvelo rápido.</p>
+                    <button id="btn-generate-event" onclick="generateEvent()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-red-500/20 text-lg">
+                        Simular Evento en Pista
+                    </button>
+                    
+                    <div id="event-action-container" class="mt-4 hidden flex-col">
+                        <p id="event-q" class="text-base font-semibold text-white mb-4"></p>
+                        <div id="event-opts" class="space-y-3 mb-6 text-sm text-slate-200 bg-slate-900/50 p-4 rounded-lg border border-slate-700"></div>
+                        <button id="event-submit" onclick="checkEventAnswer()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition-colors">
+                            Confirmar Decisión
+                        </button>
+                        <p id="event-feedback" class="text-lg font-bold mt-4 hidden text-center"></p>
+                    </div>
+                </div>
+
+                <!-- Test Múltiple Choice -->
+                <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-2xl font-semibold mb-6 border-b border-slate-600 pb-4 text-white">3. Evaluación Técnica SAE</h2>
+                    
+                    <div id="quiz-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm mb-8">
+                        <!-- Creado por JS -->
+                    </div>
+                    
+                    <div class="text-center pt-4 border-t border-slate-700">
+                        <button onclick="finishParticipation()" class="w-full md:w-auto bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-12 rounded-xl shadow-xl shadow-emerald-500/20 transition-transform transform hover:scale-105 text-lg">
+                            Terminar y Corregir Examen
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEADERBOARD CLOUD -->
+            <div class="xl:col-span-4 bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700 flex flex-col max-h-[850px]">
+                <h2 class="text-2xl font-semibold mb-4 border-b border-slate-600 pb-4 text-white flex justify-between items-center">
+                    Top Ingenieros
+                    <span id="connection-status" class="text-xs font-normal text-emerald-400 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Firebase
+                    </span>
+                </h2>
+                
+                <div class="overflow-y-auto flex-grow pr-2 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800" style="scrollbar-width: thin;">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="px-4 py-3 rounded-tl-lg">Participante</th>
+                                <th class="px-4 py-3 text-right">Pts</th>
+                                <th class="px-4 py-3 text-center rounded-tr-lg w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body" class="divide-y divide-slate-700/50">
+                            <tr><td colspan="3" class="text-center py-4 text-slate-500 italic">Conectando a la base de datos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- SCRIPTS DE FIREBASE (Modules) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        // 🔴 ACÁ DEBÉS PEGAR LA CONFIGURACIÓN DE TU FIREBASE QUE COPIASTE ANTES 🔴
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER",
+            appId: "TU_APP_ID"
+        };
+        // 🔴 HASTA ACÁ 🔴
+
+        // Verificar si Firebase fue configurado o si sigue usando los datos por defecto
+        const useFirebase = firebaseConfig.apiKey !== "TU_API_KEY" && firebaseConfig.apiKey.length > 10;
+
+        let app, db, auth;
+        if (useFirebase) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        }
+
+        // --- ESTADO GLOBAL JS ---
+        let currentEvent = null;
+        let eventScore = 0;
+        let currentEventObj = null;
+        let lastEventId = null;
+        let leaderboardData = []; // Ahora guarda los datos que vienen de la nube
+        let indexToDelete = null;
+
+        // --- ELEMENTOS DOM DISPONIBLES EN WINDOW PARA QUE FUNCIONEN LOS ONCLICK ---
+        window.sliders = { aero: document.getElementById('aero-slider'), gear: document.getElementById('gear-slider'), susp: document.getElementById('susp-slider') };
+        window.labels = { aero: document.getElementById('aero-label'), gear: document.getElementById('gear-label'), susp: document.getElementById('susp-label') };
+        window.bars = { speed: document.getElementById('speed-bar'), accel: document.getElementById('accel-bar'), corner: document.getElementById('corner-bar'), cost: document.getElementById('cost-bar') };
+        window.scores = { speed: document.getElementById('speed-score'), accel: document.getElementById('accel-score'), corner: document.getElementById('corner-score'), cost: document.getElementById('cost-score') };
+        window.trackStraight = document.getElementById('track-straight');
+        window.trackHairpin = document.getElementById('track-hairpin');
+        window.trackSweeper = document.getElementById('track-sweeper');
+        window.infoPanel = document.getElementById('info-panel');
+        window.eventDesc = document.getElementById('event-desc');
+        window.playerNameInput = document.getElementById('player-name');
+        window.nameError = document.getElementById('name-error');
+
+        // --- CONEXIÓN INICIAL ---
+        async function initApp() {
+            if (!useFirebase) {
+                console.warn("Firebase no está configurado. El simulador funcionará en Modo Local (los datos se borrarán al recargar).");
+                const statusBadge = document.getElementById('connection-status');
+                statusBadge.className = "text-xs font-normal text-amber-400 flex items-center gap-1";
+                statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Modo Local';
+                renderLeaderboard();
+                return;
+            }
+
+            try {
+                // Inicia sesión anónima (necesario para las reglas básicas de Firebase)
+                await signInAnonymously(auth);
+                listenToLeaderboard();
+            } catch (error) {
+                console.error("Error autenticando con Firebase:", error);
+                document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-500 font-bold">Error de conexión. Revisá la consola.</td></tr>`;
+            }
+        }
+
+        // --- ESCUCHAR BASE DE DATOS EN TIEMPO REAL ---
+        function listenToLeaderboard() {
+            const q = query(collection(db, "sae_scores"), orderBy("score", "desc"));
+            
+            onSnapshot(q, (snapshot) => {
+                leaderboardData = [];
+                snapshot.forEach(doc => {
+                    leaderboardData.push({ id: doc.id, ...doc.data() });
+                });
+                renderLeaderboard();
+            }, (error) => {
+                console.error("Error leyendo leaderboard:", error);
+            });
+        }
+
+        // --- RENDERIZAR TABLA DE POSICIONES ---
+        function renderLeaderboard() {
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '';
+            
+            if(leaderboardData.length === 0){
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-slate-500 italic">No hay registros aún. Sé el primero.</td></tr>`;
+                return;
+            }
+
+            leaderboardData.forEach((entry, idx) => {
+                let badgeClass = "text-slate-500";
+                if(idx === 0) badgeClass = "text-yellow-400";
+                if(idx === 1) badgeClass = "text-slate-300";
+                if(idx === 2) badgeClass = "text-amber-600";
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-700/50 transition-colors border-b border-slate-700/30">
+                        <td class="px-4 py-3 flex items-center gap-2 font-medium text-white truncate max-w-[150px]">
+                            <span class="${badgeClass} font-bold w-5 shrink-0">${idx + 1}.</span> 
+                            <span class="truncate" title="${entry.name}">${entry.name}</span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-400 font-bold text-base">${entry.score}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="openConfirmModal(${idx})" class="text-slate-500 hover:text-red-400 transition-colors" title="Eliminar registro">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- LÓGICA DE SIMULACIÓN Y EVENTOS (Exportadas a window) ---
+        window.updateSimulation = function() {
+            let aero = parseInt(window.sliders.aero.value);
+            let gear = parseInt(window.sliders.gear.value);
+            let susp = parseInt(window.sliders.susp.value);
+
+            let costLimit = 85;
+            let speed = (100 - (aero * 0.4) - (gear * 0.6));
+            let accel = ((gear * 0.7) + (aero * 0.2) + 10);
+            let corner = ((aero * 0.6) + (susp * 0.4));
+            if (susp > 80) corner -= (susp - 80) * 2; 
+            
+            let gearCostPenalty = Math.abs(gear - 50) * 0.3; 
+            let cost = (aero * 0.45) + (susp * 0.4) + gearCostPenalty + 10;
+
+            speed = Math.max(1, Math.min(100, speed));
+            accel = Math.max(1, Math.min(100, accel));
+            corner = Math.max(1, Math.min(100, corner));
+            cost = Math.max(10, Math.min(100, cost));
+
+            window.bars.speed.style.width = speed + '%'; window.scores.speed.innerText = Math.round(speed) + '%';
+            window.bars.accel.style.width = accel + '%'; window.scores.accel.innerText = Math.round(accel) + '%';
+            window.bars.corner.style.width = corner + '%'; window.scores.corner.innerText = Math.round(corner) + '%';
+            window.bars.cost.style.width = cost + '%'; window.scores.cost.innerText = Math.round(cost) + '%';
+
+            window.trackStraight.style.stroke = speed > 60 ? '#818cf8' : '#334155';
+            window.trackHairpin.style.stroke = accel > 60 ? '#34d399' : '#334155';
+            window.trackSweeper.style.stroke = corner > 60 ? '#fbbf24' : '#334155';
+
+            if (cost > costLimit) {
+                window.bars.cost.className = "bg-red-500 h-2.5 rounded-full transition-all";
+                window.scores.cost.className = "text-red-400 font-bold";
+            } else {
+                window.bars.cost.className = "bg-blue-500 h-2.5 rounded-full transition-all";
+                window.scores.cost.className = "text-white";
+            }
+
+            window.labels.aero.innerText = aero < 33 ? 'Baja' : aero < 66 ? 'Media' : 'Alta';
+            window.labels.gear.innerText = gear < 33 ? 'Larga' : gear < 66 ? 'Estándar' : 'Corta';
+            window.labels.susp.innerText = susp < 33 ? 'Blanda' : susp < 66 ? 'Intermedia' : 'Rígida';
+
+            if (cost > costLimit) window.infoPanel.innerHTML = '"Jefe, finanzas dice que no podemos pagar estas piezas."';
+            else if (aero > 70) window.infoPanel.innerHTML = '"Mucho drag en la recta, parezco un paracaídas."';
+            else if (susp > 80) window.infoPanel.innerHTML = '"El auto salta demasiado, no transmite la potencia al piso."';
+            else if (gear > 70) window.infoPanel.innerHTML = '"El pique es brutal, excelente para sector trabado."';
+            else if (speed > 75) window.infoPanel.innerHTML = '"En la recta vuela, pero para doblar no tengo nada de agarre."';
+            else window.infoPanel.innerHTML = '"El auto está dócil y predecible. Setup constante."';
+        };
+
+        const events = [
+            { id: 'rain', msg: "🌧️ Lluvia torrencial. La pista perdió agarre.", q: "¿Qué ajuste de chasis aporta mayor seguridad?", opts: ["Endurecer suspensión al máximo", "Ablandar suspensión para tracción", "Alargar caja al límite"], ans: 1, feedback: "Ablandar la suspensión permite que las llantas copien las irregularidades del asfalto húmedo." },
+            { id: 'broken_wing', msg: "🔧 Fractura en anclajes. Alerón trasero dañado.", q: "¿Cómo compensas la pérdida de adherencia trasera?", opts: ["Acortando la caja", "Aumentando presión de neumáticos", "Ablandando la suspensión trasera"], ans: 2, feedback: "Sin downforce, ablandar la suspensión ayuda a transferir peso hacia atrás al acelerar, mejorando grip." },
+            { id: 'budget_cut', msg: "📉 Recorte de patrocinadores al 60%.", q: "Para salvar el Cost Report sin arruinar el auto:", opts: ["Evitar mecanizados a medida CNC", "Usar solo fibra de carbono", "Sacar los frenos traseros"], ans: 0, feedback: "El mecanizado CNC encarece. Usar piezas estándar o simples baja radicalmente el presupuesto." },
+            { id: 'bumpy', msg: "🚧 Pista en muy mal estado. Muchos baches.", q: "Dinámicamente, una pista irregular castiga a:", opts: ["Autos veloces", "Suspensiones muy rígidas", "Cajas largas"], ans: 1, feedback: "Si la suspensión es muy rígida, el chasis salta. Rueda en el aire = 0 agarre." },
+            { id: 'engine_wear', msg: "⚙️ Fatiga de material. El motor perdió potencia.", q: "¿Cómo recuperar aceleración?", opts: ["Aumentar aerodinámica", "Llantas grandes", "Acortar la caja de cambios"], ans: 2, feedback: "Acortar la relación multiplica el torque a las ruedas, recuperando aceleración de abajo." },
+            { id: 'overheating', msg: "🌡️ El motor se está sobrecalentando.", q: "¿Cómo reducís la exigencia térmica?", opts: ["Alargando la caja (menos RPM)", "Aumentando carga aero", "Endureciendo suspensión"], ans: 0, feedback: "Alargar la relación hace que el motor gire a menos RPM para mantener velocidad, generando menos calor." },
+            { id: 'brake_fade', msg: "🔥 Brake Fade. Hervimos el líquido de frenos.", q: "¿Qué técnica compensa la falta de frenos?", opts: ["Presión de ruedas", "Acortar caja (freno motor)", "Quitar alerones"], ans: 1, feedback: "Caja corta aumenta el efecto de freno motor al soltar el acelerador, salvando los discos." },
+            { id: 'tires', msg: "🛞 Degradación térmica. Las gomas se derriten.", q: "¿Qué ajuste ayuda a conservar neumáticos?", opts: ["Endurecer para deslizar", "Caja corta para burnouts", "Ablandar suspensión para no patinar"], ans: 2, feedback: "Patinar genera calor. Ablandar mejora agarre y evita que la rueda derrape en falso." }
+        ];
+
+        window.generateEvent = function() {
+            document.getElementById('btn-generate-event').classList.add('hidden');
+            let ev;
+            do { ev = events[Math.floor(Math.random() * events.length)]; } while (ev.id === lastEventId);
+            lastEventId = ev.id; currentEvent = ev.id; currentEventObj = ev;
+            
+            window.eventDesc.innerHTML = `<span class="font-bold text-red-300 text-lg">${ev.msg}</span>`;
+            document.getElementById('event-q').innerText = ev.q;
+            
+            const optsContainer = document.getElementById('event-opts');
+            optsContainer.innerHTML = '';
+            ev.opts.forEach((opt, idx) => {
+                optsContainer.innerHTML += `<label class="flex items-center space-x-3 cursor-pointer hover:text-white p-2 rounded hover:bg-slate-800 transition-colors"><input type="radio" name="event-choice" value="${idx}" class="accent-red-500 w-4 h-4"><span class="leading-tight">${opt}</span></label>`;
+            });
+            
+            document.getElementById('event-action-container').classList.remove('hidden');
+            document.getElementById('event-action-container').classList.add('flex');
+        };
+
+        window.checkEventAnswer = function() {
+            const selected = document.querySelector('input[name="event-choice"]:checked');
+            const feedback = document.getElementById('event-feedback');
+            feedback.classList.remove('hidden');
+            
+            if (!selected) {
+                feedback.innerHTML = "⚠️ Seleccioná una opción rápido.";
+                feedback.className = "text-lg font-bold mt-4 text-yellow-400 text-center";
+                return;
+            }
+
+            if (parseInt(selected.value) === currentEventObj.ans) {
+                eventScore = 20; 
+                feedback.innerHTML = `¡Excelente decisión! (+20 pts)<br><span class="text-sm font-normal text-slate-300 block mt-2">${currentEventObj.feedback}</span>`;
+                feedback.className = "text-lg font-bold mt-4 text-emerald-400 text-center bg-slate-900/80 p-4 rounded-lg border border-emerald-500/30";
+            } else {
+                eventScore = 0;
+                feedback.innerHTML = `Mala decisión (+0 pts).<br><span class="text-sm font-normal text-slate-300 block mt-2"><strong>Explicación:</strong> ${currentEventObj.feedback}</span>`;
+                feedback.className = "text-lg font-bold mt-4 text-red-400 text-center bg-slate-900/80 p-4 rounded-lg border border-red-500/30";
+            }
+            
+            document.querySelectorAll('input[name="event-choice"]').forEach(r => r.disabled = true);
+            document.getElementById('event-submit').classList.add('hidden');
+        };
+
+        const questions = [
+            { q: "1. ¿Efecto de aumentar la carga aerodinámica?", opts: ["Aumenta velocidad final", "Aumenta agarre en curva pero reduce vel. final", "Reduce peso total"], ans: 1 },
+            { q: "2. Una relación de caja corta prioriza:", opts: ["Aceleración y salida", "Velocidad en rectas", "Ahorro de combustible"], ans: 0 },
+            { q: "3. Pista irregular + Suspensión muy rígida = ", opts: ["Mayor estabilidad", "Pérdida de tracción mecánica por rebote", "Menor desgaste"], ans: 1 },
+            { q: "4. ¿Qué material encarece mucho el Cost Report?", opts: ["Acero tubular 1020", "Aluminio fundido", "Fibra de Carbono"], ans: 2 },
+            { q: "5. Habilidad clave ante un imprevisto:", opts: ["Resiliencia con recursos disponibles", "Cálculo avanzado", "Pilotaje"], ans: 0 },
+            { q: "6. Si el auto 'se va de trompa' al doblar, es:", opts: ["Sobreviraje", "Subviraje", "Balance neutro"], ans: 1 },
+            { q: "7. ¿Qué se evalúa en el Endurance?", opts: ["Aceleración en 75m", "Estética", "Confiabilidad, consumo y consistencia"], ans: 2 },
+            { q: "8. ¿Cómo afecta la lluvia a la fricción del asfalto?", opts: ["Aumenta", "Disminuye", "No afecta"], ans: 1 },
+            { q: "9. El Cost Report obliga a los ingenieros a:", opts: ["Comprar barato", "Justificar económicamente cada decisión", "Ocultar gastos"], ans: 1 },
+            { q: "10. Según ecuación de arrastre, si velocidad se duplica, la fuerza aerodinámica:", opts: ["Se cuadruplica", "Se duplica", "Igual"], ans: 0 }
+        ];
+
+        const quizContainer = document.getElementById('quiz-container');
+        questions.forEach((q, i) => {
+            let html = `<div class="bg-slate-700/40 p-5 rounded-lg border border-slate-600"><p class="font-semibold mb-3 text-slate-100">${q.q}</p><div class="space-y-2">`;
+            q.opts.forEach((opt, j) => {
+                html += `<label class="flex items-start space-x-3 cursor-pointer text-slate-300 hover:text-white"><input type="radio" name="q${i}" value="${j}" class="accent-emerald-500 mt-1 w-4 h-4"><span class="leading-tight">${opt}</span></label>`;
+            });
+            html += `</div></div>`;
+            quizContainer.innerHTML += html;
+        });
+
+        function showError(msg) {
+            window.nameError.innerText = msg;
+            window.nameError.classList.remove('hidden');
+            window.playerNameInput.classList.add('border-red-500');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.playerNameInput.focus();
+        }
+
+        // --- SUBIR RESULTADO A FIREBASE ---
+        window.finishParticipation = async function() {
+            const nameInput = window.playerNameInput.value.trim();
+            if(!nameInput){ showError("⚠️ Ingresá tu nombre acá arriba antes de entregar."); return; }
+
+            const exists = leaderboardData.some(entry => entry.name.toLowerCase() === nameInput.toLowerCase());
+            if(exists) { showError("⚠️ Nombre repetido. Elegí otro o eliminalo de la tabla."); return; }
+
+            window.nameError.classList.add('hidden');
+            window.playerNameInput.classList.remove('border-red-500');
+            
+            let quizScore = 0;
+            questions.forEach((q, i) => {
+                const selected = document.querySelector(`input[name="q${i}"]:checked`);
+                if (selected && parseInt(selected.value) === q.ans) quizScore += 8; 
+            });
+
+            const totalScore = eventScore + quizScore;
+
+            if (useFirebase) {
+                // GUARDAR EN FIREBASE
+                try {
+                    await addDoc(collection(db, "sae_scores"), {
+                        name: nameInput,
+                        score: totalScore,
+                        timestamp: new Date().getTime() // Para ordenar en caso de empate
+                    });
+                } catch (error) {
+                    console.error("Error guardando documento: ", error);
+                }
+            } else {
+                // MODO LOCAL: Simular guardado
+                leaderboardData.push({
+                    id: Date.now().toString(), // ID falso para borrar después
+                    name: nameInput,
+                    score: totalScore
+                });
+                leaderboardData.sort((a, b) => b.score - a.score); // Ordenar de mayor a menor
+                renderLeaderboard();
+            }
+
+            document.getElementById('modal-name').innerText = nameInput;
+            document.getElementById('modal-event-score').innerText = eventScore;
+            document.getElementById('modal-test-score').innerText = quizScore;
+            document.getElementById('modal-total-score').innerText = totalScore;
+            
+            document.getElementById('result-modal').classList.remove('modal-hidden');
+            document.getElementById('result-modal').classList.add('modal-visible');
+        };
+
+        // --- ELIMINAR DE FIREBASE ---
+        window.openConfirmModal = function(index) {
+            indexToDelete = index;
+            document.getElementById('confirm-text').innerHTML = `¿Seguro que querés borrar a <strong class="text-white">${leaderboardData[index].name}</strong> de la base de datos de Firebase?`;
+            document.getElementById('confirm-modal').classList.remove('modal-hidden');
+            document.getElementById('confirm-modal').classList.add('modal-visible');
+        };
+
+        window.closeConfirmModal = function() {
+            document.getElementById('confirm-modal').classList.remove('modal-visible');
+            document.getElementById('confirm-modal').classList.add('modal-hidden');
+            indexToDelete = null;
+        };
+
+        document.getElementById('btn-confirm-delete').onclick = async function() {
+            if (indexToDelete !== null) {
+                if (useFirebase) {
+                    const docId = leaderboardData[indexToDelete].id;
+                    try {
+                        await deleteDoc(doc(db, "sae_scores", docId));
+                    } catch (error) {
+                        console.error("Error borrando documento: ", error);
+                    }
+                } else {
+                    // MODO LOCAL: Borrar del array
+                    leaderboardData.splice(indexToDelete, 1);
+                    renderLeaderboard();
+                }
+                window.closeConfirmModal();
+            }
+        };
+
+        window.resetSimulator = function() {
+            document.getElementById('result-modal').classList.remove('modal-visible');
+            document.getElementById('result-modal').classList.add('modal-hidden');
+            window.playerNameInput.value = '';
+
+            window.sliders.aero.value = 50; window.sliders.gear.value = 50; window.sliders.susp.value = 50;
+            currentEvent = null; currentEventObj = null; eventScore = 0;
+            
+            window.eventDesc.innerHTML = "Demostrá tu resiliencia: si surge un problema, resolvelo rápido.";
+            document.getElementById('btn-generate-event').classList.remove('hidden');
+            document.getElementById('event-action-container').classList.add('hidden');
+            document.getElementById('event-action-container').classList.remove('flex');
+            document.getElementById('event-submit').classList.remove('hidden');
+            document.getElementById('event-feedback').classList.add('hidden');
+
+            questions.forEach((_, i) => {
+                const checked = document.querySelector(`input[name="q${i}"]:checked`);
+                if (checked) checked.checked = false;
+            });
+
+            window.updateSimulation();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        Object.values(window.sliders).forEach(s => s.addEventListener('input', window.updateSimulation));
+
+        // Iniciar
+        initApp();
+        window.updateSimulation();
+    </script>
+</body>
+</html>
